@@ -26,24 +26,66 @@ class Layer_Dense:
     # Calculate output values from inputs, weights and biases 
     self.output = np.dot(inputs, self.weights) + self.biases
 
+# ReLU activation
+class Activation_ReLU:
+  
+  # Forward pass
+  def forward(self, inputs):
+  
+    # Calculate output values from inputs 
+    self.output = np.maximum(0, inputs)
+
+# Softmax activation
+class Activation_Softmax:
+
+  # Forward pass
+  def forward(self, inputs):
+
+    # Get unnormalized probabilities
+    exp_values = np.exp(inputs - np.max(inputs, axis=1, keepdims=True))
+
+    # Normalize them for each sample
+    probabilities = exp_values / np.sum(exp_values, axis=1, keepdims=True)
+
+    self.output = probabilities
+
 # Create dataset
 X, y = spiral_data(samples=100, classes=3)
 
 # Create Dense layer with 2 input features and 3 output values
 dense1 = Layer_Dense(2, 3)
 
+# Create ReLU activation (to be used with Dense layer):
+activation1 = Activation_ReLU()
+
+# Create second Dense layer with 3 input features (as we take output # of previous layer here) and 3 output values
+dense2 = Layer_Dense(3, 3)
+
+# Create Softmax activation (to be used with Dense layer):
+activation2 = Activation_Softmax()
+
 # Perform a forward pass of our training data through this layer
 dense1.forward(X)
 
+# Make a forward pass through activation function # it takes the output of first dense layer here 
+activation1.forward(dense1.output)
+
+# Make a forward pass through second Dense layer
+# it takes outputs of activation function of first layer as inputs 
+dense2.forward(activation1.output)
+
+# Make a forward pass through activation function # it takes the output of second dense layer here 
+activation2.forward(dense2.output)
+
 # Let's see output of the first few samples:
-print(dense1.output[:5])
+print(activation2.output[:5])
 
 # Note: In the output, you can see we have 5 rows of data that have 3 values each. 
 # Each of those 3 values is the value from the 3 neurons in the dense1 layer after passing in each of the samples. 
 '''
-[[ 0.0000000e+00  0.0000000e+00  0.0000000e+00]
- [-1.0475188e-04  1.1395361e-04 -4.7983500e-05]
- [-2.7414842e-04  3.1729150e-04 -8.6921798e-05]
- [-4.2188365e-04  5.2666257e-04 -5.5912682e-05]
- [-5.7707680e-04  7.1401405e-04 -8.9430439e-05]]
+[[0.33333334 0.33333334 0.33333334]
+ [0.3333332  0.3333332  0.33333364]
+ [0.3333329  0.33333293 0.3333342 ]
+ [0.3333326  0.33333263 0.33333477]
+ [0.33333233 0.3333324  0.33333528]]
 '''
