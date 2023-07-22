@@ -1,6 +1,6 @@
 import numpy as np
 import nnfs
-from nnfs.datasets import spiral_data
+from nnfs.datasets import spiral_data, vertical_data
 
 nnfs.init()
 
@@ -91,7 +91,7 @@ class Loss_CategoricalCrossentropy(Loss):
     return negative_log_likelihoods
 
 # Create dataset
-X, y = spiral_data(samples=100, classes=3)
+X, y = vertical_data(samples=100, classes=3)
 
 # Create Dense layer with 2 input features and 3 output values
 dense1 = Layer_Dense(2, 3)
@@ -108,44 +108,72 @@ activation2 = Activation_Softmax()
 # Create loss function
 loss_function = Loss_CategoricalCrossentropy()
 
-# Perform a forward pass of our training data through this layer
-dense1.forward(X)
+# Helper variables
+lowest_loss = 9999999 
 
-# Make a forward pass through activation function # it takes the output of first dense layer here 
-activation1.forward(dense1.output)
+# some initial value 
+best_dense1_weights = dense1.weights.copy() 
+best_dense1_biases = dense1.biases.copy() 
+best_dense2_weights = dense2.weights.copy() 
+best_dense2_biases = dense2.biases.copy()
 
-# Make a forward pass through second Dense layer
-# it takes outputs of activation function of first layer as inputs 
-dense2.forward(activation1.output)
+for iteration in range(10000):
 
-# Make a forward pass through activation function # it takes the output of second dense layer here 
-activation2.forward(dense2.output)
+  # Update weights with some small random values
+  dense1.weights += 0.05 * np.random.randn(2, 3) 
+  dense1.biases += 0.05 * np.random.randn(1, 3) 
+  dense2.weights += 0.05 * np.random.randn(3, 3) 
+  dense2.biases += 0.05 * np.random.randn(1, 3)
 
-# Let's see output of the first few samples:
-print(activation2.output[:5])
+  # Perform a forward pass of our training data through this layer
+  dense1.forward(X)
+  # Make a forward pass through activation function # it takes the output of first dense layer here 
+  activation1.forward(dense1.output)
+  # Make a forward pass through second Dense layer
+  # it takes outputs of activation function of first layer as inputs 
+  dense2.forward(activation1.output)
+  # Make a forward pass through activation function # it takes the output of second dense layer here 
+  activation2.forward(dense2.output)
+  # Let's see output of the first few samples:
+  print(activation2.output[:5])
 
-# Note: In the output, you can see we have 5 rows of data that have 3 values each. 
-# Each of those 3 values is the value from the 3 neurons in the dense1 layer after passing in each of the samples. 
-'''
-[[0.33333334 0.33333334 0.33333334]
- [0.3333332  0.3333332  0.33333364]
- [0.3333329  0.33333293 0.3333342 ]
- [0.3333326  0.33333263 0.33333477]
- [0.33333233 0.3333324  0.33333528]]
-'''
+  # Note: In the output, you can see we have 5 rows of data that have 3 values each. 
+  # Each of those 3 values is the value from the 3 neurons in the dense1 layer after passing in each of the samples. 
+  '''
+  [[0.33333334 0.33333334 0.33333334]
+  [0.3333332  0.3333332  0.33333364]
+  [0.3333329  0.33333293 0.3333342 ]
+  [0.3333326  0.33333263 0.33333477]
+  [0.33333233 0.3333324  0.33333528]]
+  '''
 
-# Perform a forward pass through activation function
-# it takes the output of second dense layer here and returns loss 
-loss = loss_function.calculate(activation2.output, y)
+  # Perform a forward pass through activation function
+  # it takes the output of second dense layer here and returns loss 
+  loss = loss_function.calculate(activation2.output, y)
 
-# Print loss value
-print('loss:', loss)
+  # Print loss value
+  print('loss:', loss)
 
-# Calculate accuracy from output of activation2 and targets # calculate values along first axis
-predictions = np.argmax(activation2.output, axis=1)
-if len(y.shape) == 2:
-  y = np.argmax(y, axis=1) 
-accuracy = np.mean(predictions == y)
-  
-# Print accuracy
-print('acc:', accuracy)
+  # Calculate accuracy from output of activation2 and targets # calculate values along first axis
+  predictions = np.argmax(activation2.output, axis=1)
+  if len(y.shape) == 2:
+    y = np.argmax(y, axis=1) 
+  accuracy = np.mean(predictions == y)
+    
+  # Print accuracy
+  print('acc:', accuracy)
+
+  # If loss is smaller - print and save weights and biases aside
+  if loss < lowest_loss:
+    print('New set of weights found, iteration:', iteration, 'loss:', loss, 'acc:', accuracy) 
+    best_dense1_weights = dense1.weights.copy() 
+    best_dense1_biases = dense1.biases.copy() 
+    best_dense2_weights = dense2.weights.copy() 
+    best_dense2_biases = dense2.biases.copy() 
+    lowest_loss = loss
+  # Revert weights and biases
+  else:
+    dense1.weights = best_dense1_weights.copy() 
+    dense1.biases = best_dense1_biases.copy() 
+    dense2.weights = best_dense2_weights.copy() 
+    dense2.biases = best_dense2_biases.copy()
