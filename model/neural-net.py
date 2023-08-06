@@ -66,6 +66,29 @@ class Layer_Dense:
     # Gradient on values
     self.dinputs = np.dot(dvalues, self.weights.T)
 
+# Dropout
+class Layer_Dropout:
+
+  # Init
+  def __init__(self, rate):
+    # Store rate, we invert it as for example for dropout 
+    # of 0.1 we need success rate of 0.9
+    self.rate = 1 - rate
+      
+  # Forward pass
+  def forward(self, inputs):
+    # Save input values
+    self.inputs = inputs
+    # Generate and save scaled mask
+    self.binary_mask = np.random.binomial(1, self.rate, size=inputs.shape) / self.rate 
+    # Apply mask to output values
+    self.output = inputs * self.binary_mask
+  
+  # Backward pass
+  def backward(self, dvalues):
+    # Gradient on values
+    self.dinputs = dvalues * self.binary_mask
+
 # ReLU activation
 class Activation_ReLU:
   
@@ -121,6 +144,58 @@ class Activation_Softmax:
       # and add it to the array of sample gradients
       self.dinputs[index] = np.dot(jacobian_matrix,
                                     single_dvalues)
+
+# Sigmoid activation
+class Activation_Sigmoid:
+  
+  # Forward pass
+  def forward(self, inputs):
+    # Save input and calculate/save output 
+    # of the sigmoid function
+    self.inputs = inputs
+    self.output = 1 / (1 + np.exp(-inputs))
+
+  # Backward pass
+  def backward(self, dvalues):
+    # Derivative - calculates from output of the sigmoid function 
+    self.dinputs = dvalues * (1 - self.output) * self.output
+
+# Softmax classifier - combined Softmax activation
+# and cross-entropy loss for faster backward step
+class Activation_Softmax_Loss_CategoricalCrossentropy():
+
+    # Creates activation and loss function objects
+    def __init__(self):
+      self.activation = Activation_Softmax()
+      self.loss = Loss_CategoricalCrossentropy()
+
+    # Forward pass
+    def forward(self, inputs, y_true):
+      # Output layer's activation function
+      self.activation.forward(inputs)
+      # Set the output
+      self.output = self.activation.output
+      # Calculate and return loss value
+      return self.loss.calculate(self.output, y_true)
+
+
+    # Backward pass
+    def backward(self, dvalues, y_true):
+
+      # Number of samples
+      samples = len(dvalues)
+
+      # If labels are one-hot encoded,
+      # turn them into discrete values
+      if len(y_true.shape) == 2:
+          y_true = np.argmax(y_true, axis=1)
+
+      # Copy so we can safely modify
+      self.dinputs = dvalues.copy()
+      # Calculate gradient
+      self.dinputs[range(samples), y_true] -= 1
+      # Normalize gradient
+      self.dinputs = self.dinputs / samples
 
 # Common loss class
 class Loss:
@@ -206,43 +281,6 @@ class Loss_CategoricalCrossentropy(Loss):
     self.dinputs = -y_true / dvalues
     # Normalize gradient
     self.dinputs = self.dinputs / samples
-
-# Softmax classifier - combined Softmax activation
-# and cross-entropy loss for faster backward step
-class Activation_Softmax_Loss_CategoricalCrossentropy():
-
-    # Creates activation and loss function objects
-    def __init__(self):
-      self.activation = Activation_Softmax()
-      self.loss = Loss_CategoricalCrossentropy()
-
-    # Forward pass
-    def forward(self, inputs, y_true):
-      # Output layer's activation function
-      self.activation.forward(inputs)
-      # Set the output
-      self.output = self.activation.output
-      # Calculate and return loss value
-      return self.loss.calculate(self.output, y_true)
-
-
-    # Backward pass
-    def backward(self, dvalues, y_true):
-
-      # Number of samples
-      samples = len(dvalues)
-
-      # If labels are one-hot encoded,
-      # turn them into discrete values
-      if len(y_true.shape) == 2:
-          y_true = np.argmax(y_true, axis=1)
-
-      # Copy so we can safely modify
-      self.dinputs = dvalues.copy()
-      # Calculate gradient
-      self.dinputs[range(samples), y_true] -= 1
-      # Normalize gradient
-      self.dinputs = self.dinputs / samples
 
 # Adagrad optimizer
 class Optimizer_Adagrad:
@@ -438,13 +476,17 @@ X, y = spiral_data(samples=1000, classes=3)
 # We usually add regularization terms to the hidden layers only. 
 # Even if we are calling the regularization method on the output layer as well, 
 # it won’t modify gradients if we do not set the lambda hyperparameters to values other than 0.
-dense1 = Layer_Dense(2, 64, weight_regularizer_l2=5e-4, bias_regularizer_l2=5e-4)
+dense1 = Layer_Dense(2, 512, weight_regularizer_l2=5e-4, bias_regularizer_l2=5e-4)
 
 # Create ReLU activation (to be used with Dense layer):
 activation1 = Activation_ReLU()
 
-# Create second Dense layer with 64 input features (as we take output # of previous layer here) and 3 output values (output values)
-dense2 = Layer_Dense(64, 3)
+# Create dropout layer
+dropout1 = Layer_Dropout(0.1)
+
+# Create second Dense layer with 64 input features (as we take output 
+# of previous layer here) and 3 output values (output values)
+dense2 = Layer_Dense(512, 3)
 
 # Create Softmax classifier's combined loss and activation
 loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
@@ -453,7 +495,7 @@ loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
 # optimizer = Optimizer_SGD(decay=8e-8, momentum=0.9) 
 # optimizer = Optimizer_Adagrad(decay=1e-4)
 # optimizer = Optimizer_RMSprop(learning_rate=0.02, decay=1e-5, rho=0.999)
-optimizer = Optimizer_Adam(learning_rate=0.05, decay=5e-7)
+optimizer = Optimizer_Adam(learning_rate=0.05, decay=5e-5)
 
 # Train in loop
 for epoch in range(10001):
@@ -464,10 +506,13 @@ for epoch in range(10001):
   # Perform a forward pass through activation function 
   # takes the output of first dense layer here 
   activation1.forward(dense1.output)
+
+  # Perform a forward pass through Dropout layer
+  dropout1.forward(activation1.output)
   
   # Perform a forward pass through second Dense layer
   # takes outputs of activation function of first layer as inputs 
-  dense2.forward(activation1.output)
+  dense2.forward(dropout1.output)
 
   # Perform a forward pass through the activation/loss function # takes the output of second dense layer here and returns loss 
   data_loss = loss_activation.forward(dense2.output, y)
@@ -494,8 +539,9 @@ for epoch in range(10001):
 
   # Backward pass
   loss_activation.backward(loss_activation.output, y) 
-  dense2.backward(loss_activation.dinputs) 
-  activation1.backward(dense2.dinputs) 
+  dense2.backward(loss_activation.dinputs)
+  dropout1.backward(dense2.dinputs)
+  activation1.backward(dropout1.dinputs) 
   dense1.backward(activation1.dinputs)
       
   # Update weights and biases
