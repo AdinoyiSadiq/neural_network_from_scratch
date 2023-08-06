@@ -226,6 +226,18 @@ class Loss:
 
     return regularization_loss
 
+  # Calculates the data and regularization losses # given model output and ground truth values 
+  def calculate(self, output, y):
+    
+    # Calculate sample losses
+    sample_losses = self.forward(output, y) 
+    
+    # Calculate mean loss
+    data_loss = np.mean(sample_losses) 
+    
+    # Return loss
+    return data_loss
+
 # Binary cross-entropy loss
 class Loss_BinaryCrossentropy(Loss): 
   
@@ -262,18 +274,6 @@ class Loss_BinaryCrossentropy(Loss):
     
     # Normalize gradient
     self.dinputs = self.dinputs / samples
-    
-  # Calculates the data and regularization losses # given model output and ground truth values 
-  def calculate(self, output, y):
-    
-    # Calculate sample losses
-    sample_losses = self.forward(output, y) 
-    
-    # Calculate mean loss
-    data_loss = np.mean(sample_losses) 
-    
-    # Return loss
-    return data_loss
 
 # Cross-entropy loss
 class Loss_CategoricalCrossentropy(Loss): 
@@ -506,112 +506,121 @@ class Optimizer_SGD:
   def post_update_params(self): 
     self.iterations += 1
 
-# Create dataset
-X, y = spiral_data(samples=1000, classes=3)
+class Execute:
 
-# Create Dense layer with 2 input features and 64 output values
-# We usually add regularization terms to the hidden layers only. 
-# Even if we are calling the regularization method on the output layer as well, 
-# it won’t modify gradients if we do not set the lambda hyperparameters to values other than 0.
-dense1 = Layer_Dense(2, 512, weight_regularizer_l2=5e-4, bias_regularizer_l2=5e-4)
+  @staticmethod
+  def classification():
+    # Create dataset
+    X, y = spiral_data(samples=1000, classes=3)
 
-# Create ReLU activation (to be used with Dense layer):
-activation1 = Activation_ReLU()
+    # Create Dense layer with 2 input features and 64 output values
+    # We usually add regularization terms to the hidden layers only. 
+    # Even if we are calling the regularization method on the output layer as well, 
+    # it won’t modify gradients if we do not set the lambda hyperparameters to values other than 0.
+    dense1 = Layer_Dense(2, 512, weight_regularizer_l2=5e-4, bias_regularizer_l2=5e-4)
 
-# Create dropout layer
-dropout1 = Layer_Dropout(0.1)
+    # Create ReLU activation (to be used with Dense layer):
+    activation1 = Activation_ReLU()
 
-# Create second Dense layer with 64 input features (as we take output 
-# of previous layer here) and 3 output values (output values)
-dense2 = Layer_Dense(512, 3)
+    # Create dropout layer
+    dropout1 = Layer_Dropout(0.1)
 
-# Create Softmax classifier's combined loss and activation
-loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
+    # Create second Dense layer with 64 input features (as we take output 
+    # of previous layer here) and 3 output values (output values)
+    dense2 = Layer_Dense(512, 3)
 
-# Create optimizer
-# optimizer = Optimizer_SGD(decay=8e-8, momentum=0.9) 
-# optimizer = Optimizer_Adagrad(decay=1e-4)
-# optimizer = Optimizer_RMSprop(learning_rate=0.02, decay=1e-5, rho=0.999)
-optimizer = Optimizer_Adam(learning_rate=0.05, decay=5e-5)
+    # Create Softmax classifier's combined loss and activation
+    loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
 
-# Train in loop
-for epoch in range(10001):
+    # Create optimizer
+    # optimizer = Optimizer_SGD(decay=8e-8, momentum=0.9) 
+    # optimizer = Optimizer_Adagrad(decay=1e-4)
+    # optimizer = Optimizer_RMSprop(learning_rate=0.02, decay=1e-5, rho=0.999)
+    optimizer = Optimizer_Adam(learning_rate=0.05, decay=5e-5)
 
-  # Perform a forward pass of our training data through this layer
-  dense1.forward(X)
+    # Train in loop
+    for epoch in range(10001):
 
-  # Perform a forward pass through activation function 
-  # takes the output of first dense layer here 
-  activation1.forward(dense1.output)
+      # Perform a forward pass of our training data through this layer
+      dense1.forward(X)
 
-  # Perform a forward pass through Dropout layer
-  dropout1.forward(activation1.output)
-  
-  # Perform a forward pass through second Dense layer
-  # takes outputs of activation function of first layer as inputs 
-  dense2.forward(dropout1.output)
+      # Perform a forward pass through activation function 
+      # takes the output of first dense layer here 
+      activation1.forward(dense1.output)
 
-  # Perform a forward pass through the activation/loss function # takes the output of second dense layer here and returns loss 
-  data_loss = loss_activation.forward(dense2.output, y)
-
-  # Calculate regularization penalty
-  regularization_loss = loss_activation.loss.regularization_loss(dense1) + loss_activation.loss.regularization_loss(dense2)
-
-  # Calculate overall loss
-  loss = data_loss + regularization_loss
-
-  # Calculate accuracy from output of activation2 and targets # calculate values along first axis
-  predictions = np.argmax(loss_activation.output, axis=1)
-  if len(y.shape) == 2:
-    y = np.argmax(y, axis=1) 
-  accuracy = np.mean(predictions==y)
-
-  if not epoch % 100: 
-    print(f'epoch: {epoch}, ' + 
-          f'acc: {accuracy:.3f}, ' + 
-          f'loss: {loss:.3f} (' +
-          f'data_loss: {data_loss:.3f}, ' + 
-          f'reg_loss: {regularization_loss:.3f}), ' + 
-          f'lr: {optimizer.current_learning_rate}')
-
-  # Backward pass
-  loss_activation.backward(loss_activation.output, y) 
-  dense2.backward(loss_activation.dinputs)
-  dropout1.backward(dense2.dinputs)
-  activation1.backward(dropout1.dinputs) 
-  dense1.backward(activation1.dinputs)
+      # Perform a forward pass through Dropout layer
+      dropout1.forward(activation1.output)
       
-  # Update weights and biases
-  optimizer.pre_update_params() 
-  optimizer.update_params(dense1) 
-  optimizer.update_params(dense2) 
-  optimizer.post_update_params()
+      # Perform a forward pass through second Dense layer
+      # takes outputs of activation function of first layer as inputs 
+      dense2.forward(dropout1.output)
 
-# Validate the model
+      # Perform a forward pass through the activation/loss function # takes the output of second dense layer here and returns loss 
+      data_loss = loss_activation.forward(dense2.output, y)
 
-# Create test dataset
-X_test, y_test = spiral_data(samples=100, classes=3)
+      # Calculate regularization penalty
+      regularization_loss = loss_activation.loss.regularization_loss(dense1) + loss_activation.loss.regularization_loss(dense2)
 
-# Perform a forward pass of our testing data through this layer 
-dense1.forward(X_test)
+      # Calculate overall loss
+      loss = data_loss + regularization_loss
 
-# Perform a forward pass through activation function
-# takes the output of first dense layer here
-activation1.forward(dense1.output)
+      # Calculate accuracy from output of activation2 and targets 
+      # calculate values along first axis
+      predictions = np.argmax(loss_activation.output, axis=1)
+      if len(y.shape) == 2:
+        y = np.argmax(y, axis=1) 
+      accuracy = np.mean(predictions==y)
 
-# Perform a forward pass through second Dense layer
-# takes outputs of activation function of first layer as inputs
-dense2.forward(activation1.output)
+      if not epoch % 100: 
+        print(f'epoch: {epoch}, ' + 
+              f'acc: {accuracy:.3f}, ' + 
+              f'loss: {loss:.3f} (' +
+              f'data_loss: {data_loss:.3f}, ' + 
+              f'reg_loss: {regularization_loss:.3f}), ' + 
+              f'lr: {optimizer.current_learning_rate}')
 
-# Perform a forward pass through the activation/loss function
-# takes the output of second dense layer here and returns loss
-loss = loss_activation.forward(dense2.output, y_test)
+      # Backward pass
+      loss_activation.backward(loss_activation.output, y) 
+      dense2.backward(loss_activation.dinputs)
+      dropout1.backward(dense2.dinputs)
+      activation1.backward(dropout1.dinputs) 
+      dense1.backward(activation1.dinputs)
+          
+      # Update weights and biases
+      optimizer.pre_update_params() 
+      optimizer.update_params(dense1) 
+      optimizer.update_params(dense2) 
+      optimizer.post_update_params()
+
+    # Validate the model
+
+    # Create test dataset
+    X_test, y_test = spiral_data(samples=100, classes=3)
+
+    # Perform a forward pass of our testing data through this layer 
+    dense1.forward(X_test)
+
+    # Perform a forward pass through activation function
+    # takes the output of first dense layer here
+    activation1.forward(dense1.output)
+
+    # Perform a forward pass through second Dense layer
+    # takes outputs of activation function of first layer as inputs
+    dense2.forward(activation1.output)
+
+    # Perform a forward pass through the activation/loss function
+    # takes the output of second dense layer here and returns loss
+    loss = loss_activation.forward(dense2.output, y_test)
 
 
-# Calculate accuracy from output of activation2 and targets # calculate values along first axis
-predictions = np.argmax(loss_activation.output, axis=1)
-if len(y_test.shape) == 2:
-  y_test = np.argmax(y_test, axis=1) 
-accuracy = np.mean(predictions == y_test)
+    # Calculate accuracy from output of activation2 and targets # calculate values along first axis
+    predictions = np.argmax(loss_activation.output, axis=1)
+    if len(y_test.shape) == 2:
+      y_test = np.argmax(y_test, axis=1) 
+    accuracy = np.mean(predictions == y_test)
 
-print(f'validation, acc: {accuracy:.3f}, loss: {loss:.3f}')
+    print(f'validation, acc: {accuracy:.3f}, loss: {loss:.3f}')
+
+
+execute = Execute()
+execute.classification()
