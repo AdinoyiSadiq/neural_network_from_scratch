@@ -578,7 +578,7 @@ class Execute:
     # optimizer = Optimizer_SGD(decay=8e-8, momentum=0.9) 
     # optimizer = Optimizer_Adagrad(decay=1e-4)
     # optimizer = Optimizer_RMSprop(learning_rate=0.02, decay=1e-5, rho=0.999)
-    optimizer = Optimizer_Adam()
+    optimizer = Optimizer_Adam(learning_rate=0.05, decay=5e-5)
 
     # Train in loop
     for epoch in range(10001):
@@ -812,7 +812,7 @@ class Execute:
     loss_function = Loss_MeanSquaredError()
 
     # Create optimizer
-    optimizer = Optimizer_Adam(learning_rate=0.005, decay=1e-3)
+    optimizer = Optimizer_Adam()
 
     # Accuracy precision for accuracy calculation
     # There are no really accuracy factor for regression problem,
