@@ -16,7 +16,7 @@ class Layer_Dense:
     # The idea here is to start a model with non-zero values small enough that they won’t affect training.
     # This way, we have a bunch of values to begin working with, but hopefully none too large or as zeros. You can experiment with values other than 0.01
     # Note: weights would have n_inputs as rows and n_neurons as columns.
-    self.weights = 0.01 * np.random.randn(n_inputs, n_neurons)
+    self.weights = 0.1 * np.random.randn(n_inputs, n_neurons)
     # Note: We’ll initialize the biases with the shape of (1, n_neurons), as a row vector, 
     # which will let us easily add it to the result of the dot product later, without additional operations like transposition.
     self.biases = np.zeros((1, n_neurons))
@@ -578,7 +578,7 @@ class Execute:
     # optimizer = Optimizer_SGD(decay=8e-8, momentum=0.9) 
     # optimizer = Optimizer_Adagrad(decay=1e-4)
     # optimizer = Optimizer_RMSprop(learning_rate=0.02, decay=1e-5, rho=0.999)
-    optimizer = Optimizer_Adam(learning_rate=0.05, decay=5e-5)
+    optimizer = Optimizer_Adam()
 
     # Train in loop
     for epoch in range(10001):
