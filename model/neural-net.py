@@ -784,29 +784,34 @@ class Optimizer_SGD:
   def post_update_params(self): 
     self.iterations += 1
 
-# Create dataset
-X, y = sine_data()
+# Create train and test dataset
+X, y = spiral_data(samples=100, classes=2)
+X_test, y_test = spiral_data(samples=100, classes=2)
+
+# Reshape labels to be a list of lists
+# Inner list contains one output (either 0 or 1)
+# per each output neuron, 1 in this case
+y = y.reshape(-1, 1)
+y_test = y_test.reshape(-1, 1)
 
 # Instantiate the model
 model = Model()
 
 # Add layers
-model.add(Layer_Dense(1, 64))
-model.add(Activation_ReLU())
-model.add(Layer_Dense(64, 64))
+model.add(Layer_Dense(2, 64, weight_regularizer_l2=5e-4, bias_regularizer_l2=5e-4))
 model.add(Activation_ReLU())
 model.add(Layer_Dense(64, 1))
-model.add(Activation_Linear())
+model.add(Activation_Sigmoid())
 
 # Set loss, optimizer and accuracy objects
 model.set(
-  loss=Loss_MeanSquaredError(), 
-  optimizer=Optimizer_Adam(learning_rate=0.005, decay=1e-3), 
-  accuracy=Accuracy_Regression()
+  loss=Loss_BinaryCrossentropy(), 
+  optimizer=Optimizer_Adam(decay=5e-7), 
+  accuracy=Accuracy_Categorical(binary=True)
 )
 
 # Finalize the model
 model.finalize()
-  
+
 # Train the model
-model.train(X, y, epochs=10000, print_every=100)
+model.train(X, y, validation_data=(X_test, y_test), epochs=10000, print_every=100)
