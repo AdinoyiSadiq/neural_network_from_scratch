@@ -77,7 +77,7 @@ class Layer_Dense:
     self.bias_regularizer_l2 = bias_regularizer_l2
       
   # Forward pass
-  def forward(self, inputs):
+  def forward(self, inputs, training):
     
     # Remember input values
     self.inputs = inputs
@@ -125,11 +125,18 @@ class Layer_Dropout:
     self.rate = 1 - rate
       
   # Forward pass
-  def forward(self, inputs):
+  def forward(self, inputs, training):
     # Save input values
     self.inputs = inputs
+
+    # If not in the training mode - return values
+    if not training:
+      self.output = inputs.copy()
+      return
+
     # Generate and save scaled mask
     self.binary_mask = np.random.binomial(1, self.rate, size=inputs.shape) / self.rate 
+
     # Apply mask to output values
     self.output = inputs * self.binary_mask
   
@@ -142,14 +149,14 @@ class Layer_Dropout:
 class Layer_Input:
   
   # Forward pass
-  def forward(self, inputs): 
+  def forward(self, inputs, training): 
     self.output = inputs
 
 # Linear activation
 class Activation_Linear:
   
   # Forward pass
-  def forward(self, inputs): 
+  def forward(self, inputs, training): 
     # Just remember values 
     self.inputs = inputs 
     self.output = inputs
@@ -167,7 +174,7 @@ class Activation_Linear:
 class Activation_ReLU:
   
   # Forward pass
-  def forward(self, inputs):
+  def forward(self, inputs, training):
     
     # Remember input values
     self.inputs = inputs
@@ -191,7 +198,7 @@ class Activation_ReLU:
 class Activation_Softmax:
 
   # Forward pass
-  def forward(self, inputs):
+  def forward(self, inputs, training):
     # Remember input values 
     self.inputs = inputs
 
@@ -231,7 +238,7 @@ class Activation_Softmax:
 class Activation_Sigmoid:
   
   # Forward pass
-  def forward(self, inputs):
+  def forward(self, inputs, training):
     # Save input and calculate/save output 
     # of the sigmoid function
     self.inputs = inputs
@@ -485,7 +492,7 @@ class Model:
     for epoch in range(1, epochs+1):
 
       # Perform the forward pass
-      output = self.forward(X)
+      output = self.forward(X, training=True)
 
       # Calculate loss
       data_loss, regularization_loss = self.loss.calculate(output, y, include_regularization=True)
@@ -522,7 +529,7 @@ class Model:
       X_val, y_val = validation_data
       
       # Perform the forward pass
-      output = self.forward(X_val)
+      output = self.forward(X_val, training=False)
       
       # Calculate the loss
       loss = self.loss.calculate(output, y_val)
@@ -581,17 +588,17 @@ class Model:
     )
 
   # Performs forward pass
-  def forward(self, X):
+  def forward(self, X, training):
     
     # Call forward method on the input layer
     # this will set the output property that
     # the first layer in "prev" object is expecting
-    self.input_layer.forward(X)
+    self.input_layer.forward(X, training)
     
     # Call forward method of every object in a chain
     # Pass output of the previous object as a parameter
     for layer in self.layers:
-      layer.forward(layer.prev.output)
+      layer.forward(layer.prev.output, training)
     
     # "layer" is now the last object from the list,
     # return its output
