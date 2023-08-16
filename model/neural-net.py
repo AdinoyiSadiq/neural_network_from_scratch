@@ -257,21 +257,6 @@ class Activation_Sigmoid:
 # and cross-entropy loss for faster backward step
 class Activation_Softmax_Loss_CategoricalCrossentropy():
 
-    # Creates activation and loss function objects
-    def __init__(self):
-      self.activation = Activation_Softmax()
-      self.loss = Loss_CategoricalCrossentropy()
-
-    # Forward pass
-    def forward(self, inputs, y_true):
-      # Output layer's activation function
-      self.activation.forward(inputs)
-      # Set the output
-      self.output = self.activation.output
-      # Calculate and return loss value
-      return self.loss.calculate(self.output, y_true)
-
-
     # Backward pass
     def backward(self, dvalues, y_true):
 
@@ -458,6 +443,8 @@ class Model:
   def __init__(self):
     # Create a list of network objects 
     self.layers = []
+    # Softmax classifier's output object
+    self.softmax_classifier_output = None
 
   # Add objects to the model
   def add(self, layer): 
@@ -465,6 +452,28 @@ class Model:
 
   # Performs backward pass
   def backward(self, output, y):
+
+    # If softmax classifier
+    if self.softmax_classifier_output is not None:
+      
+      # First call backward method
+      # on the combined activation/loss
+      # this will set dinputs property
+      self.softmax_classifier_output.backward(output, y)
+
+      # Since we'll not call backward method of the last layer
+      # which is Softmax activation
+      # as we used combined activation/loss
+      # object, let's set dinputs in this object
+      self.layers[-1].dinputs = self.softmax_classifier_output.dinputs
+
+      # Call backward method going through
+      # all the objects but last
+      # in reversed order passing dinputs as a parameter
+      for layer in reversed(self.layers[:-1]):
+        layer.backward(layer.next.dinputs)
+      
+      return
     
     # First call backward method on the loss
     # this will set dinputs property that the last
@@ -586,6 +595,17 @@ class Model:
     self.loss.remember_trainable_layers(
         self.trainable_layers
     )
+
+    # If output activation is Softmax and
+    # loss function is Categorical Cross-Entropy
+    # create an object of combined activation
+    # and loss function containing
+    # faster gradient calculation
+    if isinstance(self.layers[-1], Activation_Softmax) and isinstance(self.loss, Loss_CategoricalCrossentropy):
+      
+      # Create an object of combined activation
+      # and loss functions
+      self.softmax_classifier_output = Activation_Softmax_Loss_CategoricalCrossentropy()
 
   # Performs forward pass
   def forward(self, X, training):
@@ -791,30 +811,25 @@ class Optimizer_SGD:
   def post_update_params(self): 
     self.iterations += 1
 
-# Create train and test dataset
-X, y = spiral_data(samples=100, classes=2)
-X_test, y_test = spiral_data(samples=100, classes=2)
-
-# Reshape labels to be a list of lists
-# Inner list contains one output (either 0 or 1)
-# per each output neuron, 1 in this case
-y = y.reshape(-1, 1)
-y_test = y_test.reshape(-1, 1)
+# Create dataset
+X, y = spiral_data(samples=1000, classes=3)
+X_test, y_test = spiral_data(samples=100, classes=3)
 
 # Instantiate the model
 model = Model()
 
 # Add layers
-model.add(Layer_Dense(2, 64, weight_regularizer_l2=5e-4, bias_regularizer_l2=5e-4))
+model.add(Layer_Dense(2, 512, weight_regularizer_l2=5e-4, bias_regularizer_l2=5e-4)) 
 model.add(Activation_ReLU())
-model.add(Layer_Dense(64, 1))
-model.add(Activation_Sigmoid())
+model.add(Layer_Dropout(0.1))
+model.add(Layer_Dense(512, 3))
+model.add(Activation_Softmax())
 
 # Set loss, optimizer and accuracy objects
 model.set(
-  loss=Loss_BinaryCrossentropy(), 
-  optimizer=Optimizer_Adam(decay=5e-7), 
-  accuracy=Accuracy_Categorical(binary=True)
+  loss=Loss_CategoricalCrossentropy(), 
+  optimizer=Optimizer_Adam(learning_rate=0.05, decay=5e-5), 
+  accuracy=Accuracy_Categorical()
 )
 
 # Finalize the model
