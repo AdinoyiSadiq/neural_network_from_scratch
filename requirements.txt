@@ -6,6 +6,7 @@ kiwisolver==1.4.4
 matplotlib==3.7.2
 nnfs==0.5.1
 numpy==1.24.4
+opencv-python==4.8.0.76
 packaging==23.1
 Pillow==10.0.0
 pyparsing==3.0.9
