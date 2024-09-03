@@ -8,4 +8,4 @@ This follows the implementation found in NNFS [book](https://github.com/Sentdex/
 1. Clone the repo to your local machine
 2. Navigate to the root of the repo and setup your virtual environment using `virtualenv nnfs --python=python`.This assumes that you have both `Python` and `virtualenv` installed.
 3. Run `source nnfs/bin/activate` to activate the virtual environment.
-4. Run `python data-download.py` and then `python model/neural-net.py` to download the datasets and run the model respectively. 
+4. Run `python data-download.py` and then `python model/start.py` to download the datasets and run the model respectively. 
